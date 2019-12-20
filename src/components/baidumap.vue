@@ -27,6 +27,10 @@
         </div>
         <el-button @click="flag = true" plain>上传图片</el-button>
       </el-card>
+<!-- 
+      <el-card class="box-card">
+        <el-button @click="showBusLine" plain>公交前往</el-button>
+      </el-card> -->
     </el-drawer>
     <el-dialog title="上传图片" :visible.sync="flag">
       <el-upload
@@ -47,37 +51,15 @@
       </span>-->
       <el-button @click="resultFlag = true" v-show="buttonFlag" plain>查看结果</el-button>
     </el-dialog>
-    <el-dialog title="解析结果" :visible.sync ="resultFlag" width="80%">
-
-<el-table
-      :data="tableData"
-      style="width: 100%">
-      <el-table-column
-        prop="GPS Date Stamp"
-        label="拍摄日期"
-        width="180">
-      </el-table-column>
-      <el-table-column
-        prop="Make"
-        label="设备品牌"
-        width="180">
-      </el-table-column>
-      <el-table-column
-        prop="Model"
-        label="设备型号"
-        width="180">
-      </el-table-column>
-      <el-table-column
-        prop="GPS Longitude"
-        label="经度">
-      </el-table-column>
-      <el-table-column
-        prop="GPS Latitude"
-        label="纬度">
-      </el-table-column>
-    </el-table>
-<el-button @click="change" plain>在地图中显示</el-button>
-
+    <el-dialog title="解析结果" :visible.sync="resultFlag" width="80%">
+      <el-table :data="tableData" style="width: 100%">
+        <el-table-column prop="GPS Date Stamp" label="拍摄日期" width="180"></el-table-column>
+        <el-table-column prop="Make" label="设备品牌" width="180"></el-table-column>
+        <el-table-column prop="Model" label="设备型号" width="180"></el-table-column>
+        <el-table-column prop="GPS Longitude" label="经度"></el-table-column>
+        <el-table-column prop="GPS Latitude" label="纬度"></el-table-column>
+      </el-table>
+      <el-button @click="change" plain>在地图中显示</el-button>
     </el-dialog>
     <!-- <baidu-map class="map" :center="{lng:112.9985537638,lat:28.1456998494}" :zoom="18" :scroll-wheel-zoom="true"></baidu-map> -->
     <!-- <baidu-map>
@@ -93,10 +75,28 @@
       :scroll-wheel-zoom="true"
     >
       <bm-geolocation anchor="BMAP_ANCHOR_BOTTOM_RIGHT" :showAddressBar="true" :autoLocation="true"></bm-geolocation>
-      <bm-view class="map"></bm-view>
+            <bm-control style="float:left; clear:both;position = fixed" :offset="{width: '10px', height: '10px'}">
+        <bm-auto-complete v-model="keyword" :sugStyle="{zIndex: 1}">
+          <!-- <input placeholder="请输入地名关键字"/>  -->
+          
+           
+              <el-input clearable v-model="keyword" placeholder="请输入地名关键字" size="small" style="width:300px;"></el-input>
+
+              <el-button @click="drawer = true" type="primary" style="margin-left: 16px;">更多功能</el-button>
+              <!-- <el-button @click="driveFlag = true" plain>定位</el-button> -->
+              <el-button @click="showDriveLine" v-show="this.pointflag" plain>驾车前往</el-button>
+              <el-button @click="showBusLine" v-show="this.pointflag" plain>公交前往</el-button>
+            <!-- </el-col>
+            <el-col :span="12">
+              <el-button icon="el-icon-microphone" circle></el-button>
+            </el-col> -->
+          
+        </bm-auto-complete>
+      </bm-control>
+      <bm-view class="map">   
+      </bm-view>
       <div v-if="pointflag">
         <bm-marker :position="this.point" :dragging="true" animation="BMAP_ANIMATION_BOUNCE">
-          <!-- <bm-marker :position="{lng: 112.98406177342241, lat: 28.19833991528307}" :dragging="true" animation="BMAP_ANIMATION_BOUNCE"> -->
           <bm-label
             :content="this.content"
             :labelStyle="{color: 'red', fontSize : '24px'}"
@@ -104,30 +104,21 @@
           />
         </bm-marker>
       </div>
+    <!-- <el-row > -->
 
-      <bm-control :offset="{width: '10px', height: '10px'}">
-        <bm-auto-complete v-model="keyword" :sugStyle="{zIndex: 1}">
-          <!-- <input placeholder="请输入地名关键字"/>  -->
-          <el-row style="width:500px">
-            <el-col :span="12">
-              <el-input
-               
-                clearable
-                v-model="keyword"
-                placeholder="请输入地名关键字"
-                size="small"
-              ></el-input>
+      <!-- </el-row> -->
+      <bm-local-search v-if="searchFlag" :keyword="keyword" :auto-viewport="true"></bm-local-search>
 
-              <el-button @click="drawer = true" type="primary" style="margin-left: 16px;">更多功能</el-button>
-              <!-- <el-button  plain>定位</el-button> -->
-            </el-col>
-            <el-col :span="12">
-              <el-button icon="el-icon-microphone" circle></el-button>
-            </el-col>
-          </el-row>
-        </bm-auto-complete>
-      </bm-control>
-      <bm-local-search :keyword="keyword" :auto-viewport="true"></bm-local-search>
+             <bm-transit :start="busStart" :end="keyword" :selectFirstResult="true" :auto-viewport="true" location="长沙" v-if="busFlag"></bm-transit>
+      <bm-driving
+        v-if="driveFlag"
+        :selectFirstResult="true"
+        :start="driveStart"
+        :end="keyword"
+        :startCity="driveStartCity"
+        :endCity="driveEndCity"
+        :auto-viewport="true"
+      ></bm-driving>
     </baidu-map>
   </div>
 </template>
@@ -138,17 +129,29 @@ export default {
   name: "baidumap",
   data() {
     return {
-      location: "北京",
+      location: "长沙",
       keyword: "",
       dialogImageUrl: "",
       dialogVisible: false,
       flag: false,
+      driveFlag: false,
+      searchFlag: false,
+      busFlag:false,
       drawer: false,
       pointflag: false,
-      resultFlag:false,
-      buttonFlag:false,
+      resultFlag: false,
+      buttonFlag: false,
       content: "",
-      tableData:[]
+      tableData: [],
+
+      busStart:{lng: 112.9985537638, lat: 28.1456998494},
+      busEnd:{lng: 112.9985537638, lat: 28.1456998494},
+      busShow: false,
+      driveStart: { lng: 112.9985537638, lat: 28.1456998494 },
+      driveEnd: { lng: 112.8985537638, lat: 28.1456998494 },
+      driveStartCity: "",
+      driveEndCity: ""
+
       // BMap:"",
       // map:""
     };
@@ -158,10 +161,38 @@ export default {
       if (this.keyword == "") {
         document.getElementsByClassName("map")[0].style.height = "100%";
         document.getElementsByClassName("map")[0].style.position = "absolute";
-        this.pointflag = false
+        this.pointflag = false;
+        this.driveFlag = false;
+        this.busFlag = false;
+        this.searchFlag = false
       } else {
-        document.getElementsByClassName("map")[0].style.height = "400px";
         document.getElementsByClassName("map")[0].style.position = "relative";
+        document.getElementsByClassName("map")[0].style.height = "400px";
+        this.driveStart = this.keyword
+        this.pointflag = true
+        this.searchFlag = true
+      }
+    },
+    driveFlag() {
+      if (this.driveFlag) {
+        // document.getElementsByClassName("map")[0].style.height = "400px";
+        // document.getElementsByClassName("map")[0].style.position = "relative";
+        this.searchFlag = false
+        this.busFlag = false;
+      } else {
+        // document.getElementsByClassName("map")[0].style.height = "100%";
+        // document.getElementsByClassName("map")[0].style.position = "absolute";
+      }
+    },
+    busFlag() {
+      if (this.busFlag) {
+        // document.getElementsByClassName("map")[0].style.height = "400px";
+        // document.getElementsByClassName("map")[0].style.position = "relative";
+        this.searchFlag = false
+        this.driveFlag = false;
+      } else {
+        // document.getElementsByClassName("map")[0].style.height = "100%";
+        // document.getElementsByClassName("map")[0].style.position = "absolute";
       }
     }
   },
@@ -172,12 +203,12 @@ export default {
     },
     handleSuccess(response, file, fileList) {
       console.log(response);
-      this.tableData.push(response)
+      this.tableData.push(response);
       console.log(response["GPS Latitude"]);
       console.log(response["GPS Longitude"]);
       this.Long = response["lon"];
       this.Lat = response["lat"];
-      this.buttonFlag = true
+      this.buttonFlag = true;
       console.log(response.Make + response.Model);
 
       console.log(file + fileList);
@@ -196,7 +227,7 @@ export default {
       this.dialogVisible = false;
       this.drawer = false;
       this.flag = false;
-      this.tableData = []
+      this.tableData = [];
       // this.Long = 112.98407313967395;
       // this.Lat = 28.198545517187803;
       // var convertor = new this.BMap.Convertor()
@@ -220,21 +251,37 @@ export default {
       // console.log(gc)
       // console.log(gc.getLocation())
       var content = "";
-      gc.getLocation(point, function(rs) {
-        console.log(rs);
-        var addComp = rs.address + "关键词：" + rs.business;
-        this.keyword = rs.address
-        console.log(addComp);
-        content = addComp;
-              this.content = content;
-      this.pointflag = true;
-        // this.addr = addComp.province + ', ' + addComp.city + ', ' + addComp.district + ', ' + addComp.street + ', ' + addComp.streetNumber
-        //  _this.addr = rs.address
-        // this.keyword = ""
-      }.bind(this));
-
-
-  }
+      gc.getLocation(
+        point,
+        function(rs) {
+          console.log(rs);
+          var addComp = rs.address + "关键词：" + rs.business;
+          this.keyword = rs.address;
+          console.log(addComp);
+          content = addComp;
+          this.content = content;
+          this.pointflag = true;
+          // this.addr = addComp.province + ', ' + addComp.city + ', ' + addComp.district + ', ' + addComp.street + ', ' + addComp.streetNumber
+          //  _this.addr = rs.address
+          // this.keyword = ""
+        }.bind(this)
+      );
+    },
+    showDriveLine() {
+      // this.busEnd = new this.BMap.Point("112.9985537638","28.1456998494");
+      this.drawer = false;
+      this.driveFlag = true;
+      this.driveStart = new this.BMap.Point("112.9985537638", "28.1456998494");
+      this.driveEnd = this.point;
+    },
+    showBusLine() {
+      // this.driveEnd = new this.BMap.Point("112.9985537638", "28.1456998494");
+      // this.busEnd = this.point;
+            this.drawer = false;
+      this.busFlag = true;
+      this.busStart = new this.BMap.Point("112.9985537638", "28.1456998494");
+      this.busEnd = this.point;
+    }
   },
   mounted() {
     // this.init();
